@@ -4,7 +4,10 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import db.DB;
 import db.DbException;
@@ -71,7 +74,6 @@ public class SellerDaoJDBC implements SellerDao{
 			//nao vamos fechar a conexão pq da pra usar o mesmo dao varias vezes
 		}
 		
-		
 	}
 
 	private Seller instantiateSeller(ResultSet rs, Department dep) throws SQLException {
@@ -98,6 +100,56 @@ public class SellerDaoJDBC implements SellerDao{
 	public List<Seller> findAll() {
 		// TODO Auto-generated method stub
 		return null;
+	}
+
+	@Override
+	public List<Seller> findByDepartment(Department department) {
+		PreparedStatement st = null;
+		ResultSet rs = null;
+		
+		try {
+			st = conn.prepareStatement(
+					 "SELECT seller.*,department.Name as DepName " + 
+					 "FROM seller INNER JOIN department " + 
+					 "ON seller.DepartmentId = department.Id " + 
+					 "WHERE DepartmentId = ? " + 
+					 "ORDER BY Name");
+			
+			st.setInt(1, department.getId());
+			
+			rs = st.executeQuery();
+			//verifica se tem proximo pq o rs começa na posição zero
+			// e na zero nao tem nada ai coloca o next pra ir pra 1
+			//se nao tiver nada na posição 1 devolve null
+			//usa while pq pode ter mais de 1 linha
+			
+			List<Seller> list = new ArrayList<>();
+			//cria um map
+			Map<Integer, Department> map = new HashMap<>();
+			
+			while (rs.next()) {
+				//puxa o valor do map de acordo com o departmentid
+				Department dep = map.get(rs.getInt("DepartmentId"));
+				//se o valor for nulo(nao existe) instancia o map
+				// se nao for nulo  nao instancia
+				if (dep == null) {
+					dep = instantiateDepartment(rs);
+					map.put(rs.getInt("DepartmentId"), dep);
+				}
+
+				Seller obj = instantiateSeller(rs, dep);
+				list.add(obj);
+			}
+			
+			return list;
+			
+		} catch (SQLException e) {
+			throw new DbException(e.getMessage());
+		} finally {
+			DB.closeStatement(st);
+			DB.closeResultSet(rs);
+			//nao vamos fechar a conexão pq da pra usar o mesmo dao varias vezes
+		}
 	}
 
 }
